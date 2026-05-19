@@ -1,0 +1,44 @@
+name: Build & Push multi-oidc image to ECR
+
+on:
+  push:
+    branches:
+      - feat/multi-oidc-providers
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ECR_REGISTRY: 250751144709.dkr.ecr.us-east-1.amazonaws.com
+  ECR_REPOSITORY: lakekeeper
+  IMAGE_TAG: multi-oidc-v0.12.3
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+        with:
+          persist-credentials: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2
+
+      - name: Build and push Docker image
+        run: |
+          DOCKER_BUILDKIT=1 docker build \
+            --build-arg NO_CHEF=true \
+            -f docker/full.Dockerfile \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "Pushed $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
